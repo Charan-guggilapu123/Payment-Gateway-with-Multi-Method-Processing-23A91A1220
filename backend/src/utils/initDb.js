@@ -6,10 +6,8 @@ const initDb = async () => {
         await client.query('BEGIN');
 
         const schema = `
-        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
         CREATE TABLE IF NOT EXISTS merchants (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            id UUID PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) UNIQUE NOT NULL,
             api_key VARCHAR(64) UNIQUE NOT NULL,

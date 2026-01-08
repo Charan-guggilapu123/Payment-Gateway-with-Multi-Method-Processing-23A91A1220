@@ -10,6 +10,17 @@ function generatePaymentId() {
     return 'pay_' + result;
 }
 
+async function generateUniquePaymentId() {
+    let id;
+    let exists = true;
+    while (exists) {
+        id = generatePaymentId();
+        const res = await pool.query('SELECT 1 FROM payments WHERE id = $1', [id]);
+        exists = res.rows.length > 0;
+    }
+    return id;
+}
+
 // Logic extracted to reuse
 const processPaymentCreation = async (res, orderId, merchantId, amount, currency, method, vpa, card) => {
     // 2. Validate inputs
@@ -54,7 +65,7 @@ const processPaymentCreation = async (res, orderId, merchantId, amount, currency
     }
 
     // 3. Create payment (processing)
-    const paymentId = generatePaymentId();
+    const paymentId = await generateUniquePaymentId();
     await pool.query(
         `INSERT INTO payments (id, order_id, merchant_id, amount, currency, method, status, vpa, card_network, card_last4)
              VALUES ($1, $2, $3, $4, $5, $6, 'processing', $7, $8, $9)`,

@@ -11,6 +11,7 @@ const getTestMerchant = async (req, res) => {
                 id: m.id,
                 email: m.email,
                 api_key: m.api_key,
+                api_secret: m.api_secret,
                 seeded: true
             });
         } else {

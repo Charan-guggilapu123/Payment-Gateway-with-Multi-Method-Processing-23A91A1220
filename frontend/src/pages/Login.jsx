@@ -1,16 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (localStorage.getItem('isAuthenticated') === 'true') {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [navigate]);
 
     const handleLogin = (e) => {
         e.preventDefault();
-        if (email === 'test@example.com') {
+        // For Deliverable 1, accept any password with the test email
+        const isValid = email === 'test@example.com';
+        if (isValid) {
+            setError('');
             localStorage.setItem('isAuthenticated', 'true');
             navigate('/dashboard');
+        } else {
+            setError('Invalid credentials. Use test@example.com');
         }
     };
 
@@ -35,7 +47,8 @@ export default function Login() {
                         value={password}
                         onChange={e => setPassword(e.target.value)}
                     />
-                    <button className="btn" style={{ width: '100%' }} data-test-id="login-button">Login</button>
+                    <button type="submit" className="btn" style={{ width: '100%' }} data-test-id="login-button">Login</button>
+                    {error && <p style={{ color: 'salmon', marginTop: '0.75rem' }}>{error}</p>}
                 </form>
             </div>
         </div>

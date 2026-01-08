@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { API_BASE } from '../config/api';
 
 export default function Checkout() {
     const [searchParams] = useSearchParams();
@@ -16,7 +17,7 @@ export default function Checkout() {
 
     useEffect(() => {
         if (orderId) {
-            fetch(`http://localhost:8000/api/v1/orders/${orderId}/public`)
+            fetch(`${API_BASE}/api/v1/orders/${orderId}/public`)
                 .then(res => {
                     if (!res.ok) throw new Error('Order not found');
                     return res.json();
@@ -51,7 +52,7 @@ export default function Checkout() {
             };
         }
 
-        fetch('http://localhost:8000/api/v1/payments/public', {
+        fetch(`${API_BASE}/api/v1/payments/public`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -70,7 +71,7 @@ export default function Checkout() {
 
     const pollStatus = (pid) => {
         const interval = setInterval(() => {
-            fetch(`http://localhost:8000/api/v1/payments/${pid}/public`)
+            fetch(`${API_BASE}/api/v1/payments/${pid}/public`)
                 .then(res => res.json())
                 .then(p => {
                     if (p.status === 'success') {

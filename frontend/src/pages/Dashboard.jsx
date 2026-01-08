@@ -1,27 +1,50 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { API_BASE } from '../config/api';
 
 export default function Dashboard() {
     const [merchant, setMerchant] = useState(null);
     const [stats, setStats] = useState({ total: 0, amount: 0, successRate: 0 });
+    const [error, setError] = useState('');
+    const [isCreating, setIsCreating] = useState(false);
 
     useEffect(() => {
-        fetch('http://localhost:8000/api/v1/test/merchant')
-            .then(res => res.json())
+        fetch(`${API_BASE}/api/v1/test/merchant`)
+            .then(res => {
+                if (!res.ok) throw new Error(`API error ${res.status}`);
+                return res.json();
+            })
             .then(data => {
                 setMerchant(data);
+                setError('');
                 fetchPayments(data.api_key, data.api_secret);
+            })
+            .catch(err => {
+                console.error('Failed to load merchant:', err);
+                setError('API is not reachable. Start the backend on port 8000.');
             });
     }, []);
 
+    // Auto-refresh stats every 2 seconds for real-time updates
+    useEffect(() => {
+        if (!merchant) return;
+        const interval = setInterval(() => {
+            fetchPayments(merchant.api_key, merchant.api_secret);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [merchant]);
+
     const fetchPayments = (key, secret) => {
-        fetch('http://localhost:8000/api/v1/payments', {
+        fetch(`${API_BASE}/api/v1/payments`, {
             headers: {
                 'X-Api-Key': key,
                 'X-Api-Secret': secret
             }
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`API error ${res.status}`);
+                return res.json();
+            })
             .then(data => {
                 if (Array.isArray(data)) {
                     const total = data.length;
@@ -35,21 +58,112 @@ export default function Dashboard() {
                         successRate: rate
                     });
                 }
+            })
+            .catch(err => {
+                console.error('Failed to load payments:', err);
+                setError('API is not reachable. Start the backend on port 8000.');
             });
+    };
+
+    const createTestOrder = async () => {
+        if (!merchant || isCreating) return;
+        setIsCreating(true);
+        setError('');
+        try {
+            const orderRes = await fetch(`${API_BASE}/api/v1/orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': merchant.api_key,
+                    'X-Api-Secret': merchant.api_secret
+                },
+                body: JSON.stringify({ amount: Math.floor(Math.random() * 100000) + 10000 })
+            });
+            
+            const order = await orderRes.json();
+            if (!order.id) {
+                setError(order.error || 'Failed to create order');
+                setIsCreating(false);
+                return;
+            }
+
+            const paymentRes = await fetch(`${API_BASE}/api/v1/payments`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': merchant.api_key,
+                    'X-Api-Secret': merchant.api_secret
+                },
+                body: JSON.stringify({
+                    order_id: order.id,
+                    method: 'upi',
+                    vpa: 'testuser@upi'
+                })
+            });
+            
+            const payment = await paymentRes.json();
+            if (!payment.id) {
+                setError(payment.error || 'Failed to create payment');
+                setIsCreating(false);
+                return;
+            }
+
+            // Refetch immediately and then again after a short delay
+            fetchPayments(merchant.api_key, merchant.api_secret);
+            setTimeout(() => {
+                fetchPayments(merchant.api_key, merchant.api_secret);
+            }, 500);
+
+            setIsCreating(false);
+        } catch (error) {
+            console.error('Error creating test order:', error);
+            setError('Failed to create test order. Check API connectivity.');
+            setIsCreating(false);
+        }
     };
 
     const formatCurrency = (paise) => {
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100);
     };
 
-    if (!merchant) return <div>Loading...</div>;
+    if (!merchant) {
+        return (
+            <div className="container">
+                <div className="card" style={{ marginTop: '2rem' }}>
+                    <h2>Loading...</h2>
+                    {error && (
+                        <div style={{
+                            marginTop: '1rem',
+                            padding: '0.75rem',
+                            borderRadius: '0.5rem',
+                            background: 'rgba(239,68,68,0.15)',
+                            border: '1px solid #ef4444'
+                        }}>
+                            {error}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container" data-test-id="dashboard">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h1>Dashboard</h1>
-                <Link to="/dashboard/transactions" className="btn">View Transactions</Link>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button onClick={createTestOrder} className="btn" style={{ backgroundColor: '#22c55e' }} disabled={isCreating}>
+                        {isCreating ? 'Creating...' : '+ Create Test Order'}
+                    </button>
+                    <Link to="/dashboard/transactions" className="btn">View Transactions</Link>
+                </div>
             </div>
+
+            {error && (
+                <div className="card" style={{ marginTop: '1rem', background: 'rgba(239,68,68,0.15)', borderColor: '#ef4444' }}>
+                    <strong style={{ color: '#ef4444' }}>Backend unreachable:</strong> {error}
+                </div>
+            )}
 
             <div className="card" data-test-id="api-credentials" style={{ marginBottom: '2rem' }}>
                 <h3>API Credentials</h3>

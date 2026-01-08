@@ -15,13 +15,17 @@ app.use(express.json());
 // Routes
 app.use('/', apiRoutes);
 
-// Start server
-app.listen(PORT, async () => {
-    console.log(`Server running on port ${PORT}`);
+// Initialize DB first, then start server
+(async () => {
     try {
         await initDb();
         console.log('Database initialized');
     } catch (e) {
         console.error('Failed to initialize DB', e);
+        // Exit if DB init fails to avoid serving without schema
+        process.exit(1);
     }
-});
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+})();

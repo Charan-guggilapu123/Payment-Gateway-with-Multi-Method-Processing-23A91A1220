@@ -9,6 +9,18 @@ function generateOrderId() {
     return 'order_' + result;
 }
 
+async function generateUniqueOrderId() {
+    // Ensure ID uniqueness by checking collisions
+    let id;
+    let exists = true;
+    while (exists) {
+        id = generateOrderId();
+        const res = await pool.query('SELECT 1 FROM orders WHERE id = $1', [id]);
+        exists = res.rows.length > 0;
+    }
+    return id;
+}
+
 const createOrder = async (req, res) => {
     const { amount, currency = 'INR', receipt, notes } = req.body;
 
@@ -22,7 +34,7 @@ const createOrder = async (req, res) => {
         });
     }
 
-    const orderId = generateOrderId();
+    const orderId = await generateUniqueOrderId();
     const merchantId = req.merchant.id;
 
     try {
