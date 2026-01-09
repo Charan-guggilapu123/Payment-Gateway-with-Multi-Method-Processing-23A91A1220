@@ -5,8 +5,9 @@ import { API_BASE } from '../config/api';
 export default function CreateOrder() {
     const navigate = useNavigate();
     const [amount, setAmount] = useState('100.00');
-    const [apiKey, setApiKey] = useState('test_merchant_api_key');
-    const [apiSecret, setApiSecret] = useState('test_merchant_secret');
+    // Defaults match backend-seeded test merchant (see backend/src/utils/initDb.js)
+    const [apiKey, setApiKey] = useState('key_test_abc123');
+    const [apiSecret, setApiSecret] = useState('secret_test_xyz789');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -34,13 +35,29 @@ export default function CreateOrder() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to create order');
+                const serverError = data?.error;
+                const errorMessage =
+                    typeof serverError === 'string'
+                        ? serverError
+                        : serverError?.description
+                            || serverError?.message
+                            || serverError?.detail
+                            || data?.message
+                            || 'Failed to create order';
+                throw new Error(errorMessage);
             }
 
             // Redirect to checkout page with order ID
             navigate(`/checkout?order_id=${data.id}`);
         } catch (err) {
-            setError(err.message);
+            const fallbackError =
+                typeof err === 'string'
+                    ? err
+                    : err?.description
+                        || err?.message
+                        || err?.error
+                        || 'An error occurred. Please try again.';
+            setError(fallbackError);
         } finally {
             setLoading(false);
         }
@@ -116,14 +133,17 @@ export default function CreateOrder() {
                     </div>
 
                     {error && (
-                        <div style={{ 
-                            padding: '0.75rem', 
-                            marginBottom: '1rem', 
-                            background: '#fef2f2', 
-                            border: '1px solid #ef4444',
-                            borderRadius: '0.5rem',
-                            color: '#ef4444'
-                        }}>
+                        <div
+                            data-test-id="validation-error"
+                            style={{ 
+                                padding: '0.75rem', 
+                                marginBottom: '1rem', 
+                                background: '#fef2f2', 
+                                border: '1px solid #ef4444',
+                                borderRadius: '0.5rem',
+                                color: '#ef4444'
+                            }}
+                        >
                             {error}
                         </div>
                     )}
@@ -147,8 +167,8 @@ export default function CreateOrder() {
                 }}>
                     <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--accent)' }}>Test Credentials</h3>
                     <div style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                        <div>Key: test_merchant_api_key</div>
-                        <div>Secret: test_merchant_secret</div>
+                        <div>Key: key_test_abc123</div>
+                        <div>Secret: secret_test_xyz789</div>
                     </div>
                 </div>
             </div>
